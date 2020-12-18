@@ -1,0 +1,21 @@
+{
+    "name": "alb/php-inotify-ffi",
+    "description": "Pure-PHP inotify bindind (FFI-based)",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Arnaud Le Blanc",
+            "email": "arnaud.lb@gmail.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "files": [
+            "src/inotify.php"
+        ],
+        "psr-4": {
+            "Alb\\Inotify\\": "src/"
+        }
+    }
+}
