@@ -9,7 +9,10 @@
             "email": "arnaud.lb@gmail.com"
         }
     ],
-    "require": {},
+    "require": {
+        "php": "^8.0",
+        "ext-ffi": "*"
+    },
     "autoload": {
         "files": [
             "src/inotify.php"
