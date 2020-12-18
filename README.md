@@ -4,7 +4,7 @@ php-inotify-ffi is a pure-PHP inotify binding based on FFI.
 
 ## Experimental / WIP
 
-This is an experimental / WIP package. For a stable inotify binding, use [https://github.com/arnaud-lb/php-inotify](php-inotify).
+This is an experimental / WIP package. For a stable inotify binding, use [php-inotify](https://github.com/arnaud-lb/php-inotify).
 
 ## Goal
 
@@ -26,4 +26,4 @@ As the inotify file descriptors are owned by PHP streams, they are managed by PH
 
 ## Comparison with the PECL extension
 
-The [https://github.com/arnaud-lb/php-inotify](extension) is stable and has the same capabilities.
+The [extension](https://github.com/arnaud-lb/php-inotify) is stable and has the same capabilities.
