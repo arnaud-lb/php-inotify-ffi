@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Alb\Inotify;
 
 /**
@@ -11,22 +13,41 @@ namespace Alb\Inotify;
  * - It is useable with stream_select(), stream_set_blocking()
  * - Prevents leaking the file descriptor
  */
-class StreamWrapper
+final class StreamWrapper
 {
     private ?int $fd;
 
-    private $stream;
+    /**
+     * @var resource
+     */
+    private mixed $stream;
 
-    public $context;
+    /**
+     * @var resource
+     */
+    public mixed $context;
 
-    public static function fdFromStream($stream): int
+    /**
+     * @param resource $stream
+     */
+    public static function fdFromStream(mixed $stream): int
     {
-        $meta = stream_get_meta_data($stream);
-        if (!$meta['wrapper_data'] instanceof self) {
-            throw new \InvalidArgumentException('Unsupported stream: "%s"', $meta['uri']);
+        $wrapper = \stream_get_meta_data($stream)['wrapper_data'] ?? null;
+
+        if ($wrapper instanceof self) {
+            return $wrapper->getFD();
         }
 
-        return $meta['wrapper_data']->getFD();
+        return 0;
+    }
+
+    private function getFD(): int
+    {
+        if ($this->fd === null || $this->stream === null) {
+            return 0;
+        }
+
+        return $this->fd;
     }
 
     public function dir_closedir(): bool
@@ -39,7 +60,7 @@ class StreamWrapper
         throw new UnsupportedStreamOperationException();
     }
 
-    public function dir_readdir(): string
+    public function dir_readdir(): string|false
     {
         throw new UnsupportedStreamOperationException();
     }
@@ -64,23 +85,21 @@ class StreamWrapper
         throw new UnsupportedStreamOperationException();
     }
 
-    public function stream_cast(int $cast_as)
+    /**
+     * @return resource
+     */
+    public function stream_cast(int $cast_as): mixed
     {
-        switch ($cast_as) {
-        case STREAM_CAST_FOR_SELECT:
-            return $this->stream;
-        default:
-            throw new UnsupportedStreamOperationException(sprintf(
-                'stream_cast is not supported for %d',
-                $cast_as,
-            ));
-        }
+        return match ($cast_as) {
+            STREAM_CAST_FOR_SELECT => $this->stream,
+            default => throw new UnsupportedStreamOperationException(\sprintf('stream_cast is not supported for %d', $cast_as)),
+        };
     }
 
     public function stream_close(): void
     {
-        fclose($this->stream);
-        $this->closeFD();
+        \fclose($this->stream);
+        Inotify::closeFD($this->getFD());
     }
 
     // called at least by stream_get_meta_data()
@@ -96,7 +115,7 @@ class StreamWrapper
 
     public function stream_lock(int $operation): bool
     {
-        return flock($this->stream, $operation);
+        return \flock($this->stream, $operation);
     }
 
     public function stream_metadata(string $path, int $option, mixed $value): bool
@@ -106,30 +125,28 @@ class StreamWrapper
 
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
     {
-        $fd = substr($path, strlen('inotify://'));
-        if (!is_numeric($fd)) {
-            throw new Exception(sprintf(
-                'Invalid file descriptor in "%s": "%s"',
-                $path,
-                $fd,
-            ));
+        $fd = \substr($path, \strlen('inotify://'));
+        if (!\is_numeric($fd)) {
+            \trigger_error(\sprintf('Invalid file descriptor in "%s": "%s"', $path, $fd), E_USER_WARNING);
+
+            return false;
         }
 
-        $stream = fopen(sprintf('php://fd/%d', $fd), 'r');
+        $stream = fopen(\sprintf('php://fd/%d', $fd), 'r');
         if ($stream === false) {
-            throw new Exception('Failed opening fd as a stream');
+            return false;
         }
 
-        $this->fd = $fd;
+        $this->fd = (int) $fd;
         $this->stream = $stream;
 
         return true;
     }
 
-    public function stream_read(int $count): string
+    public function stream_read(int $count): string|false
     {
-        throw new UnsupportedStreamOperationException(sprintf(
-            'Buffered reads on an inotify stream not supported. Use %s\\read() instead.', 
+        throw new UnsupportedStreamOperationException(\sprintf(
+            'Buffered reads on an inotify stream not supported. Use %s\\read() instead.',
             __NAMESPACE__,
         ));
     }
@@ -141,12 +158,10 @@ class StreamWrapper
 
     public function stream_set_option(int $option, ?int $arg1, ?int $arg2): bool
     {
-        switch ($option) {
-        case STREAM_OPTION_BLOCKING:
-            return stream_set_blocking($this->stream, $arg1);
-        default:
-            return false;
-        }
+        return match ($option) {
+            STREAM_OPTION_BLOCKING => \stream_set_blocking($this->stream, (bool) $arg1),
+            default => false,
+        };
     }
 
     public function stream_stat(): array
@@ -177,20 +192,5 @@ class StreamWrapper
     public function url_stat(string $path, int $flags): array
     {
         throw new UnsupportedStreamOperationException();
-    }
-
-    private function getFD(): int
-    {
-        if ($this->fd === null || $this->stream === null) {
-            throw new Exception('stream is not opened');
-        }
-
-        return $this->fd;
-    }
-
-    private function closeFD()
-    {
-        $ffi = init();
-        $ffi->close($this->getFD());
     }
 }
