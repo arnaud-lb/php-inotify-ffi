@@ -173,13 +173,13 @@ function inotify_read($stream): array
     $bufSize = max(FFI::sizeof($inotifyEventType) + 255, 128);
 
     while (true) {
-        $buf = $ffi->new(FFI::arrayType(FFI::type('char'), [$bufSize]));
+        $buf = $ffi->new(FFI::arrayType($ffi->type('char'), [$bufSize]));
         $readden = $ffi->read($fd, $buf, $bufSize);
 
         if ($readden === -1) {
             // buf too small to read an event
             if ($ffi->errno === EINVAL) {
-                $bufSize = (int) ceil($buffize * 1.6);
+                $bufSize = (int) ceil($bufSize * 1.6);
                 continue;
             }
             // fd is unblocking, and no event is available

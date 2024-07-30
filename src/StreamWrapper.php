@@ -17,6 +17,8 @@ class StreamWrapper
 
     private $stream;
 
+    public $context;
+
     public static function fdFromStream($stream): int
     {
         $meta = stream_get_meta_data($stream);
