@@ -1,4 +1,2 @@
-- Better exceptions: add errstr in the exception message
-- PECL compatibility layer (optional include file that define functions and constants in the global namespace compatible with pecl-inotify)
 - Add inotify_queue_len
 - Use inotify_queue_len in inotify_read to estimate buffer size

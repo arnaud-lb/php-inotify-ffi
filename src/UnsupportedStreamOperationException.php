@@ -1,7 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Alb\Inotify;
 
-class UnsupportedStreamOperationException extends Exception
+final class UnsupportedStreamOperationException extends \RuntimeException
 {
 }

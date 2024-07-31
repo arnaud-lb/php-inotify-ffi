@@ -10,12 +10,12 @@
         }
     ],
     "require": {
-        "php": "^8.0",
+        "php": ">=8.0",
         "ext-ffi": "*"
     },
     "autoload": {
         "files": [
-            "src/inotify.php"
+            "src/bootstrap.php"
         ],
         "psr-4": {
             "Alb\\Inotify\\": "src/"
