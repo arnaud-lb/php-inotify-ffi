@@ -1,2 +1,0 @@
-- Add inotify_queue_len
-- Use inotify_queue_len in inotify_read to estimate buffer size

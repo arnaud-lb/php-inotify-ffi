@@ -156,6 +156,21 @@ final class Inotify
         return $watchDescriptor;
     }
 
+    private static function phpInotifyQueueLen(int $fd): int
+    {
+        $ffi = Ioctl::getFFI();
+        $queueLen = $ffi->new('int');
+
+        $ret = Ioctl::ioctl($fd, Ioctl::FIONREAD, \FFI::addr($queueLen));
+        if ($ret < 0) {
+            \trigger_error('ioctl error', E_USER_WARNING);
+
+            return 0;
+        }
+
+        return $queueLen->cdata;
+    }
+
     /**
      * @param resource $inotifyInstance
      */
@@ -165,7 +180,7 @@ final class Inotify
             throw new \TypeError(\sprintf('$inotifyInstance must be of type resource, %s given', \get_debug_type($inotifyInstance)));
         }
 
-        throw new \RuntimeException('Not implemented yet');
+        return self::phpInotifyQueueLen(StreamWrapper::fdFromStream($inotifyInstance));
     }
 
     /**
@@ -188,16 +203,19 @@ final class Inotify
         $inotifyEventType = $ffi->type('struct inotify_event');
         $inotifyEventPtrType = $ffi->type('struct inotify_event *');
 
-        $bufSize = \max(\FFI::sizeof($inotifyEventType) + 255, 128);
+        $readBufSize = (int) \ceil(self::phpInotifyQueueLen($fd) * 1.6);
+        if ($readBufSize < 1) {
+            $readBufSize = \FFI::sizeof($inotifyEventType) + 32;
+	    }
 
         while (true) {
-            $readbuf = $ffi->new(\FFI::arrayType($ffi->type('char'), [$bufSize]));
-            $readden = $ffi->read($fd, $readbuf, $bufSize);
+            $readbuf = $ffi->new(\FFI::arrayType($ffi->type('char'), [$readBufSize]));
+            $readden = $ffi->read($fd, $readbuf, $readBufSize);
 
             if ($readden === -1) {
                 // buf too small to read an event
                 if ($ffi->errno === self::EINVAL) {
-                    $bufSize = (int) ceil($bufSize * 1.6);
+                    $readBufSize = (int) \ceil($readBufSize * 1.6);
                     continue;
                 }
                 // fd is unblocking, and no event is available
