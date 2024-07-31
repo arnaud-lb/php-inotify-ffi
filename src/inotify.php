@@ -91,6 +91,9 @@ const EAGAIN = 11;
 /** @internal */
 const EINVAL = 22;
 
+/** @internal */
+const FIONREAD = 0x541B;
+
 /**
  * Initializes a new inotify instance.
  *
@@ -104,7 +107,7 @@ const EINVAL = 22;
  * - stream_set_blocking()
  * - fclose()
  *
- * @return stream
+ * @return resource
  */
 function inotify_init()
 {
@@ -170,7 +173,10 @@ function inotify_read($stream): array
     $inotifyEventType = $ffi->type('struct inotify_event');
     $inotifyEventPtrType = $ffi->type('struct inotify_event *');
 
-    $bufSize = max(FFI::sizeof($inotifyEventType) + 255, 128);
+    $bufSize = (int) \ceil(php_inotify_queue_len($fd) * 1.6);
+    if ($bufSize < 1) {
+        $bufSize = \FFI::sizeof($inotifyEventType) + 32;
+    }
 
     while (true) {
         $buf = $ffi->new(FFI::arrayType($ffi->type('char'), [$bufSize]));
@@ -205,6 +211,28 @@ function inotify_read($stream): array
     return $events;
 }
 
+/**
+ * Return a number upper than zero if there are pending events
+ */
+function inotify_queue_len($stream): int
+{
+    return php_inotify_queue_len(StreamWrapper::fdFromStream($stream));
+}
+
+/** @internal */
+function php_inotify_queue_len(int $fd): int
+{
+    $ffi = ioctl();
+    $queueLen = $ffi->new('int');
+
+    $ret = $ffi->ioctl($fd, FIONREAD, \FFI::addr($queueLen));
+    if ($ret < 0) {
+        throw new Exception('inotify_queue_len: call failed', $fd);
+    }
+
+    return $queueLen->cdata;
+}
+
 /** @internal */
 function init(): FFI {
     static $ffi;
@@ -216,6 +244,19 @@ function init(): FFI {
     $ffi = FFI::load(__DIR__ . '/inotify.h');
 
     stream_wrapper_register('inotify', StreamWrapper::class, STREAM_IS_URL);
+
+    return $ffi;
+}
+
+/** @internal */
+function ioctl(): FFI {
+    static $ffi;
+
+    if ($ffi !== null) {
+        return $ffi;
+    }
+
+    $ffi = FFI::cdef('int ioctl(int, unsigned long, ...);');
 
     return $ffi;
 }
