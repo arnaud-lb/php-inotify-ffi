@@ -144,12 +144,12 @@ function inotify_add_watch($stream, string $name, int $mask): int
     return $watchDescriptor;
 }
 
-function inotify_rm_watch($stream, int $watchDescriptor, int $mask): void
+function inotify_rm_watch($stream, int $watchDescriptor): void
 {
     $ffi = init();
     $fd = StreamWrapper::fdFromStream($stream);
 
-    $ret = $ffi->inotify_rm_watch($fd);
+    $ret = $ffi->inotify_rm_watch($fd, $watchDescriptor);
     if ($ret === -1) {
         throw new \Exception('inotify_rm_watch: call failed', $watchDescriptor);
     }
